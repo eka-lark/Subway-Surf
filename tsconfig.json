@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@core/*": ["./src/core/*"],
+      "@input/*": ["./src/input/*"],
+      "@player/*": ["./src/player/*"],
+      "@track/*": ["./src/track/*"],
+      "@obstacles/*": ["./src/obstacles/*"],
+      "@collectibles/*": ["./src/collectibles/*"],
+      "@powerups/*": ["./src/powerups/*"],
+      "@economy/*": ["./src/economy/*"],
+      "@scoring/*": ["./src/scoring/*"],
+      "@missions/*": ["./src/missions/*"],
+      "@characters/*": ["./src/characters/*"],
+      "@audio/*": ["./src/audio/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@rendering/*": ["./src/rendering/*"],
+      "@persistence/*": ["./src/persistence/*"],
+      "@utils/*": ["./src/utils/*"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tests"]
+}
