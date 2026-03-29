@@ -65,7 +65,9 @@ export class ObstacleManager {
       this.obstacles.push(obs);
     }
     this.lastSpawnZ = spawnZ;
-    this.nextSpawnDistance = interval * GAME.BASE_SPEED;
+    // Use a minimum gap based on jump travel distance to prevent landing on obstacles after jumping
+    const minGap = 15; // minimum meters between obstacles (covers a full jump arc at base speed)
+    this.nextSpawnDistance = Math.max(minGap, interval * GAME.BASE_SPEED);
   }
 
   private pickLanes(count: number): number[] {

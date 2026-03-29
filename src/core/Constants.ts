@@ -11,8 +11,8 @@ export const GAME = {
 } as const;
 
 export const PHYSICS = {
-  JUMP_FORCE: 10.0,
-  GRAVITY: -30.0,
+  JUMP_FORCE: 12.0,
+  GRAVITY: -28.0,
   LANE_SWITCH_SPEED: 10.0,
   SLIDE_DURATION: 0.6,
   GROUND_Y: 0.0,

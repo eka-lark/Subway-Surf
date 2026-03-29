@@ -403,8 +403,8 @@ export class GameManager {
 
   private processAction(action: GameAction): void {
     switch (action) {
-      case 'left': this.player.moveLeft(); break;
-      case 'right': this.player.moveRight(); break;
+      case 'left': this.player.moveRight(); break;
+      case 'right': this.player.moveLeft(); break;
       case 'jump': this.player.jump(); break;
       case 'slide': this.player.slide(); break;
     }
