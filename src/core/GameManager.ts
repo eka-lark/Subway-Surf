@@ -141,13 +141,8 @@ export class GameManager {
       () => this.render()
     );
 
-    const initAudio = () => {
-      this.audio.init();
-      document.removeEventListener('click', initAudio);
-      document.removeEventListener('touchstart', initAudio);
-    };
-    document.addEventListener('click', initAudio);
-    document.addEventListener('touchstart', initAudio);
+    // Init audio immediately — Howler handles user interaction unlocking internally
+    this.audio.init();
 
     this.loadingScreen.setProgress(1.0);
     this.loadingScreen.setText('Ready!');
@@ -272,6 +267,7 @@ export class GameManager {
   private pauseGame(): void {
     if (!this.state.transition('paused')) return;
     this.input.disable();
+    this.audio.stopMusic();
     this.ui.showOverlay('screen-pause');
   }
 
@@ -279,11 +275,13 @@ export class GameManager {
     if (!this.state.transition('playing')) return;
     this.ui.hide('screen-pause');
     this.input.enable();
+    this.audio.startMusic();
   }
 
   private handleCrash(): void {
     if (!this.state.transition('crash')) return;
     this.input.disable();
+    this.audio.stopMusic();
     this.input.flush();
 
     // Police rushes to catch the runner — when caught, show revive or game over
@@ -478,6 +476,9 @@ export class GameManager {
     this.score.setActiveMultiplier(activePU?.active && activePU.id === 'multiplier' ? 2 : 1);
 
     this.policeChaser.update(deltaTime, this.player.x, this.player.y, this.player.z, this.currentSpeed);
+
+    // Evolve music as distance increases
+    this.audio.updateMusicPhase(this.score.distance);
 
     this.hud.updateScore(this.score.current);
     this.hud.updateCoins(this.score.coinsCollected);

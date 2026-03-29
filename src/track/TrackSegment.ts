@@ -41,22 +41,10 @@ export class TrackSegment {
       }
     }
 
-    // Rail ties (wooden sleepers across each lane)
-    const tieMat = new THREE.MeshPhongMaterial({ color: 0x5d4037 });
-    const tieGeo = new THREE.BoxGeometry(1.0, 0.05, 0.15);
-    for (let lane = -1; lane <= 1; lane++) {
-      const cx = lane * GAME.LANE_WIDTH;
-      for (let z = 0; z < segLen; z += 1.5) {
-        const tie = new THREE.Mesh(tieGeo, tieMat);
-        tie.position.set(cx, 0.01, z);
-        this.group.add(tie);
-      }
-    }
-
     // Lane divider lines (yellow dashes)
     const lineMat = new THREE.MeshBasicMaterial({ color: 0xffd600 });
     for (const xPos of [-GAME.LANE_WIDTH / 2, GAME.LANE_WIDTH / 2]) {
-      for (let z = 0; z < segLen; z += 4) {
+      for (let z = 0; z < segLen; z += 8) {
         const dashGeo = new THREE.PlaneGeometry(0.1, 2);
         const dash = new THREE.Mesh(dashGeo, lineMat);
         dash.rotation.x = -Math.PI / 2;

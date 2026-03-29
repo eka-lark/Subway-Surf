@@ -392,7 +392,7 @@ export function addEnvironmentProps(group: THREE.Group): void {
   const sideOffset = GAME.LANE_WIDTH * 1.5 + 2.5;
   const segLen = GAME.SEGMENT_LENGTH;
 
-  const numBuildings = randomInt(3, 5);
+  const numBuildings = randomInt(1, 3);
   for (let i = 0; i < numBuildings; i++) {
     const z = randomFloat(2, segLen - 4);
     for (const side of [-1, 1]) {
@@ -405,9 +405,8 @@ export function addEnvironmentProps(group: THREE.Group): void {
     }
   }
 
-  // Standalone hoardings/billboards between buildings
-  const numHoardings = randomInt(1, 2);
-  for (let i = 0; i < numHoardings; i++) {
+  // Standalone hoardings/billboards between buildings (30% chance of 1)
+  if (Math.random() < 0.3) {
     const z = randomFloat(5, segLen - 5);
     const side = randomChoice([-1, 1]);
     const hoarding = createStandaloneHoarding(side);
@@ -416,7 +415,7 @@ export function addEnvironmentProps(group: THREE.Group): void {
     group.add(hoarding);
   }
 
-  const numTrees = randomInt(1, 3);
+  const numTrees = randomInt(0, 1);
   for (let i = 0; i < numTrees; i++) {
     const z = randomFloat(3, segLen - 3);
     const side = randomChoice([-1, 1]);
@@ -426,7 +425,7 @@ export function addEnvironmentProps(group: THREE.Group): void {
     group.add(tree);
   }
 
-  for (let z = 5; z < segLen; z += randomFloat(12, 20)) {
+  for (let z = 5; z < segLen; z += randomFloat(20, 35)) {
     const side = randomChoice([-1, 1]);
     const lamp = createLamppost();
     lamp.position.set(side * (sideOffset - 0.3), 0, z);
@@ -462,7 +461,7 @@ function createBuilding(facingSide: number): THREE.Group {
   const faceZ = -facingSide * depth / 2; // Face toward track
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (Math.random() < 0.2) continue;
+      if (Math.random() < 0.5) continue;
       const winGeo = new THREE.PlaneGeometry(0.5, 0.7);
       const win = new THREE.Mesh(winGeo, windowMat);
       win.position.set(-width / 2 + 0.8 + c * 1.2, 2 + r * 2, faceZ + (facingSide > 0 ? -0.01 : 0.01));
@@ -471,40 +470,93 @@ function createBuilding(facingSide: number): THREE.Group {
     }
   }
 
-  // Wall art on the track-facing wall (60% chance, only on taller buildings)
-  if (height > 8 && Math.random() < 0.6) {
+  // Wall art on buildings — both track-facing and outer side
+  if (height > 6 && Math.random() < 0.75) {
     const bbWidth = Math.min(width - 0.4, 4);
-    const bbHeight = bbWidth * 0.75;
-    let bbMat: THREE.Material;
+    // Position higher on the building (middle to upper area)
+    const bbY = randomFloat(height * 0.4, Math.min(height - 2, height * 0.75));
+    const faceOffset = facingSide > 0 ? -0.02 : 0.02;
+    const frameOffset = facingSide > 0 ? -0.03 : 0.03;
 
-    // 30% chance to show user photo, 70% chance for procedural billboard
-    if (userPhotoTexture && Math.random() < 0.3) {
-      bbMat = new THREE.MeshBasicMaterial({ map: userPhotoTexture });
-    } else {
-      const bbDef = randomChoice(BILLBOARDS);
-      const texture = createBillboardTexture(bbDef);
-      bbMat = new THREE.MeshBasicMaterial({ map: texture });
+    // Pick shape: 0=rectangle, 1=tall portrait, 2=circle, 3=wide banner, 4=diamond, 5=rounded square
+    const shape = randomInt(0, 5);
+
+    // 50% chance user photo, 50% procedural billboard
+    const usePhoto = userPhotoTexture && Math.random() < 0.5;
+    const mat = usePhoto
+      ? new THREE.MeshLambertMaterial({ map: userPhotoTexture })
+      : new THREE.MeshLambertMaterial({ map: createBillboardTexture(randomChoice(BILLBOARDS)) });
+
+    let geo: THREE.BufferGeometry;
+    let frameColor = 0x333333;
+
+    switch (shape) {
+      case 0: // Rectangle (landscape)
+        geo = new THREE.PlaneGeometry(bbWidth, bbWidth * 0.6);
+        frameColor = 0xffd700;
+        break;
+      case 1: // Tall portrait
+        geo = new THREE.PlaneGeometry(bbWidth * 0.6, bbWidth * 1.0);
+        frameColor = 0xc0c0c0;
+        break;
+      case 2: // Circle
+        geo = new THREE.CircleGeometry(bbWidth * 0.4, 32);
+        frameColor = 0xff6b35;
+        break;
+      case 3: // Wide banner
+        geo = new THREE.PlaneGeometry(bbWidth * 1.2, bbWidth * 0.35);
+        frameColor = 0x2196f3;
+        break;
+      case 4: // Diamond (rotated square)
+        geo = new THREE.PlaneGeometry(bbWidth * 0.6, bbWidth * 0.6);
+        frameColor = 0xe91e63;
+        break;
+      default: // Rounded-look square
+        geo = new THREE.PlaneGeometry(bbWidth * 0.7, bbWidth * 0.7);
+        frameColor = 0x4caf50;
+        break;
     }
 
-    const bbGeo = new THREE.PlaneGeometry(bbWidth, bbHeight);
-    const bb = new THREE.Mesh(bbGeo, bbMat);
-    const bbY = randomFloat(3, Math.min(height - bbHeight, 8));
-    bb.position.set(0, bbY, faceZ + (facingSide > 0 ? -0.02 : 0.02));
+    const bb = new THREE.Mesh(geo, mat);
+    bb.position.set(0, bbY, faceZ + faceOffset);
     if (facingSide > 0) bb.rotation.y = Math.PI;
+    if (shape === 4) bb.rotation.z = Math.PI / 4; // Diamond rotation
     building.add(bb);
 
-    // Frame border around the image
-    const frameMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-    const frameGeos = [
-      { w: bbWidth + 0.1, h: 0.08, x: 0, y: bbY + bbHeight / 2 + 0.04 },
-      { w: bbWidth + 0.1, h: 0.08, x: 0, y: bbY - bbHeight / 2 - 0.04 },
-    ];
-    for (const fg of frameGeos) {
-      const frame = new THREE.Mesh(new THREE.PlaneGeometry(fg.w, fg.h), frameMat);
-      frame.position.set(fg.x, fg.y, faceZ + (facingSide > 0 ? -0.03 : 0.03));
-      if (facingSide > 0) frame.rotation.y = Math.PI;
-      building.add(frame);
+    // Frame border — shape-matched
+    const frameMat = new THREE.MeshPhongMaterial({ color: frameColor });
+    if (shape === 2) {
+      // Circular frame ring
+      const ringGeo = new THREE.RingGeometry(bbWidth * 0.4, bbWidth * 0.44, 32);
+      const ring = new THREE.Mesh(ringGeo, frameMat);
+      ring.position.set(0, bbY, faceZ + frameOffset);
+      if (facingSide > 0) ring.rotation.y = Math.PI;
+      building.add(ring);
+    } else {
+      // Rectangular frame (top + bottom bars)
+      const fw = shape === 3 ? bbWidth * 1.3 : shape === 1 ? bbWidth * 0.7 : bbWidth + 0.1;
+      const topY = bbY + (shape === 1 ? bbWidth * 0.5 : shape === 3 ? bbWidth * 0.18 : bbWidth * 0.31) + 0.04;
+      const botY = bbY - (shape === 1 ? bbWidth * 0.5 : shape === 3 ? bbWidth * 0.18 : bbWidth * 0.31) - 0.04;
+      for (const fy of [topY, botY]) {
+        const frame = new THREE.Mesh(new THREE.PlaneGeometry(fw, 0.08), frameMat);
+        frame.position.set(0, fy, faceZ + frameOffset);
+        if (facingSide > 0) frame.rotation.y = Math.PI;
+        if (shape === 4) frame.rotation.z = Math.PI / 4;
+        building.add(frame);
+      }
+      // Side bars for portrait and square shapes
+      if (shape === 1 || shape === 5) {
+        const fh = shape === 1 ? bbWidth * 1.0 : bbWidth * 0.7;
+        const halfW = shape === 1 ? bbWidth * 0.3 : bbWidth * 0.35;
+        for (const fx of [-halfW - 0.04, halfW + 0.04]) {
+          const sideFrame = new THREE.Mesh(new THREE.PlaneGeometry(0.08, fh + 0.16), frameMat);
+          sideFrame.position.set(fx, bbY, faceZ + frameOffset);
+          if (facingSide > 0) sideFrame.rotation.y = Math.PI;
+          building.add(sideFrame);
+        }
+      }
     }
+
   }
 
   return building;
@@ -537,7 +589,7 @@ function createStandaloneHoarding(facingSide: number): THREE.Group {
   hoarding.add(back);
 
   // Billboard face (toward track)
-  const bbMat = new THREE.MeshBasicMaterial({ map: texture });
+  const bbMat = new THREE.MeshLambertMaterial({ map: texture });
   const bb = new THREE.Mesh(new THREE.PlaneGeometry(bbWidth, bbHeight), bbMat);
   bb.position.set(0, poleHeight, facingSide > 0 ? -0.06 : 0.06);
   if (facingSide > 0) bb.rotation.y = Math.PI;
