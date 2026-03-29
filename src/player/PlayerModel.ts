@@ -14,6 +14,7 @@ export class PlayerModel {
   private backpack: THREE.Mesh;
   private animTime = 0;
   private currentAnim: PlayerAnimState = 'run';
+  private stumbleTimer = 0;
 
   constructor() {
     this.group = new THREE.Group();
@@ -264,5 +265,27 @@ export class PlayerModel {
       this.body.position.y = -0.8 + Math.sin(t) * 0.1;
       this.body.rotation.z = Math.sin(t * 0.7) * 0.05;
     }
+
+    // Stumble wobble overlay — shakes the body side-to-side, always resets to 0
+    if (this.stumbleTimer > 0) {
+      this.stumbleTimer -= deltaTime;
+      if (this.stumbleTimer <= 0) {
+        this.stumbleTimer = 0;
+        // Ensure clean reset
+        this.group.rotation.z = 0;
+        this.group.position.x = 0;
+      } else {
+        const decay = this.stumbleTimer / 0.5;
+        const wobble = Math.sin(this.stumbleTimer * 30) * 0.15 * decay;
+        // Apply wobble to the outer group so it doesn't interfere with body animations
+        this.group.rotation.z = wobble;
+        this.group.position.x = wobble * 0.3;
+      }
+    }
+  }
+
+  /** Trigger a stumble wobble effect (wall hit) */
+  triggerStumble(): void {
+    this.stumbleTimer = 0.5;
   }
 }

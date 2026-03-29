@@ -172,6 +172,17 @@ export class GameManager {
     const noReviveBtn = document.getElementById('btn-no-revive');
     if (reviveBtn) reviveBtn.addEventListener('click', () => this.doRevive());
     if (noReviveBtn) noReviveBtn.addEventListener('click', () => this.declineRevive());
+
+    // Global mute button
+    const muteBtn = document.getElementById('btn-mute');
+    if (muteBtn) {
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const muted = this.audio.toggleMute();
+        muteBtn.textContent = muted ? '🔇' : '🔊';
+        muteBtn.classList.toggle('muted', muted);
+      });
+    }
   }
 
   private initEvents(): void {
@@ -181,10 +192,31 @@ export class GameManager {
     });
     eventBus.on('player:jump', () => { this.runStats.jumps++; this.audio.playSFX('jump'); });
     eventBus.on('player:slide', () => { this.runStats.slides++; this.audio.playSFX('slide'); });
-    eventBus.on('player:crash', () => { this.audio.playSFX('crash'); this.vfx.spawnCrash(this.player.x, this.player.y + 0.9, this.player.z); });
+    eventBus.on('player:crash', () => {
+      this.audio.playSFX('crash');
+      this.audio.playSFX('whistle');
+      this.vfx.spawnCrash(this.player.x, this.player.y + 0.9, this.player.z);
+    });
+    eventBus.on('player:wallStumble', () => {
+      if (this.state.is('playing') && !this.player.isImmune && !this.player.isFlying) {
+        // Player stumbles — camera shakes, character wobbles, speed drops, police closes in
+        this.audio.playSFX('crash');
+        this.camera.shake(0.3, 0.4);
+        this.player.model.triggerStumble();
+        this.policeChaser.onPlayerStumble();
+      }
+    });
+    eventBus.on('player:wallCrash', () => {
+      if (this.state.is('playing') && !this.player.isImmune && !this.player.isFlying) {
+        // 3rd wall hit — full crash
+        this.player.hit();
+        this.handleCrash();
+      }
+    });
     eventBus.on('coin:collected', () => { this.audio.playSFX('coin'); });
     eventBus.on('powerup:pickup', () => { this.audio.playSFX('powerup'); this.runStats.powerUpsUsed++; });
     eventBus.on('achievement:unlocked', () => { this.audio.playSFX('achievement'); });
+    eventBus.on('train:incoming', () => { this.audio.playSFX('train_horn'); });
   }
 
   private goToMenu(): void {
@@ -268,12 +300,25 @@ export class GameManager {
   private showRevivePrompt(): void {
     this.state.transition('revive');
     const cost = this.reviveCount === 0 ? ECONOMY.REVIVE_COST_1 : ECONOMY.REVIVE_COST_2;
+    const canAfford = this.wallet.coins >= cost;
+
     const costEl = document.getElementById('revive-cost');
-    if (costEl) costEl.textContent = `Cost: ${cost} coins`;
+    if (costEl) costEl.textContent = `Cost: ${cost} coins${canAfford ? '' : ' (Not enough!)'}`;
+
+    // Enable/disable the revive button based on affordability
+    const reviveBtn = document.getElementById('btn-revive') as HTMLButtonElement | null;
+    if (reviveBtn) {
+      reviveBtn.disabled = !canAfford;
+      reviveBtn.style.opacity = canAfford ? '1' : '0.4';
+      reviveBtn.textContent = canAfford ? `Revive (${cost})` : 'No Coins';
+    }
+
     const timerEl = document.getElementById('revive-timer');
     this.reviveTimer = 5;
     if (timerEl) timerEl.textContent = '5';
     this.ui.showOverlay('screen-revive');
+
+    // Countdown — if timer expires without user tapping Revive, game over
     this.reviveInterval = setInterval(() => {
       this.reviveTimer--;
       if (timerEl) timerEl.textContent = String(Math.max(0, Math.ceil(this.reviveTimer)));
@@ -286,9 +331,12 @@ export class GameManager {
   }
 
   private doRevive(): void {
-    if (this.reviveInterval) { clearInterval(this.reviveInterval); this.reviveInterval = null; }
+    // Only revive if user explicitly taps and can afford
     const cost = this.reviveCount === 0 ? ECONOMY.REVIVE_COST_1 : ECONOMY.REVIVE_COST_2;
-    if (!this.wallet.spendCoins(cost)) { this.declineRevive(); return; }
+    if (!this.wallet.canAfford('coins', cost)) return; // Do nothing if can't afford
+
+    if (this.reviveInterval) { clearInterval(this.reviveInterval); this.reviveInterval = null; }
+    if (!this.wallet.spendCoins(cost)) { return; }
     this.reviveCount++;
     this.ui.hide('screen-revive');
     this.player.revive();
@@ -307,6 +355,7 @@ export class GameManager {
     this.state.transition('gameover');
     this.input.disable();
     this.audio.stopMusic();
+    this.audio.playGameOverSting();
     this.score.finalizeRun();
     this.wallet.addCoins(this.score.coinsCollected);
 
@@ -386,11 +435,13 @@ export class GameManager {
 
     const isFlying = this.powerUps.jetpackActive;
 
-    // Apply jetpack flight to player
+    // Apply jetpack flight to player + switch music
     if (isFlying && !this.player.isFlying) {
-      this.player.setFlying(true, 4.5); // Fly above obstacles but stay visible
+      this.player.setFlying(true, 4.5);
+      this.audio.playTrack('jetpack');
     } else if (!isFlying && this.player.isFlying) {
-      this.player.setFlying(false, 0); // Land back down
+      this.player.setFlying(false, 0);
+      this.audio.playTrack('gameplay');
     }
 
     this.player.update(deltaTime, this.currentSpeed);

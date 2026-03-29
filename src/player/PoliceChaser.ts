@@ -274,6 +274,13 @@ export class PoliceChaser {
     }
   }
 
+  /** Player stumbled on wall — police closes gap by 3 units */
+  onPlayerStumble(): void {
+    if (this.state === 'chasing') {
+      this.chaseDistance = Math.max(this.catchDistance + 2, this.chaseDistance - 3);
+    }
+  }
+
   /** Player crashed — police rushes to catch them. Calls onCaught when reached. */
   onPlayerCrash(onCaught: () => void): void {
     this.state = 'catching';

@@ -17,6 +17,7 @@ export function createObstacleMesh(config: ObstacleConfig): THREE.Group {
       createFullBarrier(group, config);
       break;
     case 'train_parked':
+    case 'train_oncoming':
       createTrain(group, config);
       break;
     default: {
@@ -181,71 +182,156 @@ function createFullBarrier(group: THREE.Group, config: ObstacleConfig): void {
 }
 
 function createTrain(group: THREE.Group, config: ObstacleConfig): void {
-  // Moving train — long green/silver car
-  const bodyMat = new THREE.MeshPhongMaterial({ color: 0x43a047 });
-  const roofMat = new THREE.MeshPhongMaterial({ color: 0x757575 });
+  const isOncoming = config.id === 'train_oncoming';
+  const bodyColor = config.color;
+  const bodyMat = new THREE.MeshPhongMaterial({ color: bodyColor, flatShading: true });
+  const roofMat = new THREE.MeshPhongMaterial({ color: 0x757575, flatShading: true });
   const windowMat = new THREE.MeshPhongMaterial({ color: 0xb3e5fc, transparent: true, opacity: 0.6 });
-  const stripeMat = new THREE.MeshPhongMaterial({ color: 0xfdd835 });
-  const wheelMat = new THREE.MeshPhongMaterial({ color: 0x424242 });
+  const stripeMat = new THREE.MeshPhongMaterial({ color: isOncoming ? 0xff5722 : 0xfdd835 });
+  const wheelMat = new THREE.MeshPhongMaterial({ color: 0x333333, flatShading: true });
+  const doorMat = new THREE.MeshPhongMaterial({ color: 0x9e9e9e, flatShading: true });
 
-  // Main body
-  const bodyGeo = new THREE.BoxGeometry(config.width, config.height * 0.7, config.depth);
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.y = config.height * 0.45;
-  group.add(body);
+  // Build train as multiple connected cars
+  const carLength = 7;
+  const numCars = Math.max(1, Math.floor(config.depth / carLength));
+  const gapBetweenCars = 0.3;
 
-  // Roof (rounded look with a box)
-  const roofGeo = new THREE.BoxGeometry(config.width - 0.3, 0.3, config.depth);
-  const roof = new THREE.Mesh(roofGeo, roofMat);
-  roof.position.y = config.height * 0.82;
-  group.add(roof);
+  for (let car = 0; car < numCars; car++) {
+    const carZ = -config.depth / 2 + car * (carLength + gapBetweenCars) + carLength / 2;
+    const isFirstCar = car === 0;
+    const isLastCar = car === numCars - 1;
 
-  // Yellow stripe along the side
-  for (const side of [-1, 1]) {
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.02, 0.15, config.depth + 0.01),
-      stripeMat
+    // Car body
+    const carBody = new THREE.Mesh(
+      new THREE.BoxGeometry(config.width, config.height * 0.65, carLength),
+      bodyMat
     );
-    stripe.position.set(side * config.width / 2, config.height * 0.35, 0);
-    group.add(stripe);
-  }
+    carBody.position.set(0, config.height * 0.42, carZ);
+    group.add(carBody);
 
-  // Windows along both sides
-  for (let z = -config.depth / 2 + 0.8; z < config.depth / 2 - 0.5; z += 1.2) {
+    // Roof
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(config.width - 0.2, 0.2, carLength - 0.2),
+      roofMat
+    );
+    roof.position.set(0, config.height * 0.76, carZ);
+    group.add(roof);
+
+    // Stripe along sides
     for (const side of [-1, 1]) {
-      const win = new THREE.Mesh(
-        new THREE.BoxGeometry(0.02, config.height * 0.25, 0.7),
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.12, carLength),
+        stripeMat
+      );
+      stripe.position.set(side * config.width / 2, config.height * 0.35, carZ);
+      group.add(stripe);
+
+      // Bottom rail
+      const bottomRail = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.06, carLength),
+        stripeMat
+      );
+      bottomRail.position.set(side * config.width / 2, config.height * 0.12, carZ);
+      group.add(bottomRail);
+    }
+
+    // Windows (evenly spaced with door gaps)
+    for (let wz = -carLength / 2 + 0.6; wz < carLength / 2 - 0.4; wz += 0.9) {
+      // Skip window positions where doors are
+      const isDoorPos = Math.abs(wz) < 0.8;
+      for (const side of [-1, 1]) {
+        if (isDoorPos) {
+          // Door
+          const door = new THREE.Mesh(
+            new THREE.BoxGeometry(0.03, config.height * 0.4, 0.7),
+            doorMat
+          );
+          door.position.set(side * (config.width / 2 + 0.01), config.height * 0.32, carZ + wz);
+          group.add(door);
+        } else {
+          // Window
+          const win = new THREE.Mesh(
+            new THREE.BoxGeometry(0.03, config.height * 0.2, 0.6),
+            windowMat
+          );
+          win.position.set(side * (config.width / 2 + 0.01), config.height * 0.52, carZ + wz);
+          group.add(win);
+        }
+      }
+    }
+
+    // Bogies/wheels at each end of car
+    for (const bz of [-carLength / 2 + 0.8, carLength / 2 - 0.8]) {
+      const bogie = new THREE.Mesh(
+        new THREE.BoxGeometry(config.width + 0.05, 0.12, 0.6),
+        wheelMat
+      );
+      bogie.position.set(0, 0.08, carZ + bz);
+      group.add(bogie);
+
+      // Wheel circles
+      for (const side of [-1, 1]) {
+        const wheel = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.18, 0.18, 0.08, 10),
+          wheelMat
+        );
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(side * (config.width / 2 + 0.03), 0.18, carZ + bz);
+        group.add(wheel);
+      }
+    }
+
+    // Front face on first car / rear face on last car
+    const frontFaceZ = isOncoming
+      ? (isFirstCar ? carZ - carLength / 2 - 0.05 : null)
+      : (isLastCar ? carZ + carLength / 2 + 0.05 : null);
+
+    if ((isFirstCar || isLastCar) && frontFaceZ !== null) {
+      // Cab face (slightly different color)
+      const cabMat = new THREE.MeshPhongMaterial({
+        color: isOncoming ? 0xb71c1c : (bodyColor === 0x22cc44 ? 0x1b5e20 : 0x0d47a1),
+        flatShading: true
+      });
+      const cabFace = new THREE.Mesh(
+        new THREE.BoxGeometry(config.width, config.height * 0.65, 0.1),
+        cabMat
+      );
+      cabFace.position.set(0, config.height * 0.42, frontFaceZ);
+      group.add(cabFace);
+
+      // Windshield
+      const windshield = new THREE.Mesh(
+        new THREE.BoxGeometry(config.width * 0.7, config.height * 0.2, 0.02),
         windowMat
       );
-      win.position.set(side * config.width / 2, config.height * 0.55, z);
-      group.add(win);
+      windshield.position.set(0, config.height * 0.6, frontFaceZ + (frontFaceZ > 0 ? 0.06 : -0.06));
+      group.add(windshield);
+
+      // Headlights
+      const headlightMat = new THREE.MeshBasicMaterial({ color: isOncoming ? 0xff5722 : 0xffeb3b });
+      for (const x of [-config.width / 3, config.width / 3]) {
+        const hl = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), headlightMat);
+        hl.position.set(x, config.height * 0.3, frontFaceZ + (frontFaceZ > 0 ? 0.06 : -0.06));
+        group.add(hl);
+      }
+
+      // Route number plate
+      const plateMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.02), plateMat);
+      plate.position.set(0, config.height * 0.7, frontFaceZ + (frontFaceZ > 0 ? 0.06 : -0.06));
+      group.add(plate);
+    }
+
+    // Connector between cars (except last car)
+    if (!isLastCar) {
+      const connector = new THREE.Mesh(
+        new THREE.BoxGeometry(config.width * 0.4, config.height * 0.3, gapBetweenCars + 0.2),
+        wheelMat
+      );
+      connector.position.set(0, config.height * 0.25, carZ + carLength / 2 + gapBetweenCars / 2);
+      group.add(connector);
     }
   }
-
-  // Wheels/bogies
-  for (const z of [-config.depth / 2 + 1, config.depth / 2 - 1]) {
-    const bogie = new THREE.Mesh(
-      new THREE.BoxGeometry(config.width + 0.1, 0.15, 0.8),
-      wheelMat
-    );
-    bogie.position.set(0, 0.1, z);
-    group.add(bogie);
-  }
-
-  // Front face
-  const frontMat = new THREE.MeshPhongMaterial({ color: 0x2e7d32 });
-  const front = new THREE.Mesh(
-    new THREE.BoxGeometry(config.width, config.height * 0.7, 0.1),
-    frontMat
-  );
-  front.position.set(0, config.height * 0.45, config.depth / 2 + 0.05);
-  group.add(front);
-
-  // Front light
-  const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), lightMat);
-  headlight.position.set(0, config.height * 0.5, config.depth / 2 + 0.1);
-  group.add(headlight);
 }
 
 export function computeObstacleAABB(config: ObstacleConfig, x: number, z: number): AABB {

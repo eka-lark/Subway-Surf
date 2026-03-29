@@ -65,9 +65,9 @@ export const POOL_SIZES = {
 } as const;
 
 export const INPUT = {
-  MIN_SWIPE_DISTANCE: 50,
-  MAX_SWIPE_TIME: 300,
-  DEAD_ZONE_ANGLE: 30,
+  MIN_SWIPE_DISTANCE: 30,   // Lower threshold for mobile (was 50)
+  MAX_SWIPE_TIME: 500,      // More forgiving swipe time (was 300ms)
+  DEAD_ZONE_ANGLE: 35,      // Slightly wider dead zone for finger accuracy
   BUFFER_SIZE: 2,
 } as const;
 

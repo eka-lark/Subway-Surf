@@ -19,6 +19,8 @@ export class PlayerController {
   private immuneTimer = 0;
   private _flying = false;
   private _flightTargetY = 0;
+  private _wallHitCount = 0;
+  private _wallStumbleTimer = 0;
 
   constructor() { this.model = new PlayerModel(); }
 
@@ -36,8 +38,40 @@ export class PlayerController {
     return createPlayerAABB(this.currentX, this.positionY, this.positionZ, PLAYER.STANDING_WIDTH, height, PLAYER.STANDING_DEPTH);
   }
 
-  moveLeft(): void { if (this.state !== 'dead' && this.targetLane > -1) { this.targetLane--; eventBus.emit('player:laneSwitch', this.targetLane); } }
-  moveRight(): void { if (this.state !== 'dead' && this.targetLane < 1) { this.targetLane++; eventBus.emit('player:laneSwitch', this.targetLane); } }
+  moveLeft(): void {
+    if (this.state === 'dead') return;
+    if (this.targetLane > -1) {
+      this.targetLane--;
+      eventBus.emit('player:laneSwitch', this.targetLane);
+    } else {
+      this._wallHitCount++;
+      if (this._wallHitCount >= 3) {
+        eventBus.emit('player:wallCrash', null);
+      } else {
+        this._wallStumbleTimer = 0.5;
+        eventBus.emit('player:wallStumble', null);
+      }
+    }
+  }
+
+  moveRight(): void {
+    if (this.state === 'dead') return;
+    if (this.targetLane < 1) {
+      this.targetLane++;
+      eventBus.emit('player:laneSwitch', this.targetLane);
+    } else {
+      this._wallHitCount++;
+      if (this._wallHitCount >= 3) {
+        eventBus.emit('player:wallCrash', null);
+      } else {
+        this._wallStumbleTimer = 0.5;
+        eventBus.emit('player:wallStumble', null);
+      }
+    }
+  }
+
+  get isStumbling(): boolean { return this._wallStumbleTimer > 0; }
+  get wallHitCount(): number { return this._wallHitCount; }
 
   jump(): void {
     if (this.state !== 'grounded' && this.state !== 'sliding') return;
@@ -86,9 +120,22 @@ export class PlayerController {
     }
   }
 
+  /** Returns the effective speed multiplier (reduced during stumble) */
+  getSpeedMultiplier(): number {
+    return this._wallStumbleTimer > 0 ? 0.4 : 1.0;
+  }
+
   update(deltaTime: number, speed: number): void {
     if (this.state === 'dead') return;
-    this.positionZ += speed * deltaTime;
+
+    // Stumble slowdown
+    if (this._wallStumbleTimer > 0) {
+      this._wallStumbleTimer -= deltaTime;
+      if (this._wallStumbleTimer <= 0) this._wallStumbleTimer = 0;
+    }
+
+    const effectiveSpeed = speed * this.getSpeedMultiplier();
+    this.positionZ += effectiveSpeed * deltaTime;
     const targetX = this.targetLane * GAME.LANE_WIDTH;
     this.currentX = moveTowards(this.currentX, targetX, PHYSICS.LANE_SWITCH_SPEED * deltaTime);
 
@@ -128,6 +175,7 @@ export class PlayerController {
     this.verticalVelocity = 0; this.state = 'grounded'; this.slideTimer = 0;
     this.immune = false; this.immuneTimer = 0;
     this._flying = false; this._flightTargetY = 0;
+    this._wallHitCount = 0; this._wallStumbleTimer = 0;
     this.model.setAnimation('run');
     this.model.group.position.set(0, 0, 0);
     this.model.group.visible = true;
