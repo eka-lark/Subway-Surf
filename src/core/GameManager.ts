@@ -8,6 +8,7 @@ import { CameraController } from '@rendering/CameraController';
 import { VFXManager } from '@rendering/VFXManager';
 import { InputManager } from '@input/InputManager';
 import { PlayerController } from '@player/PlayerController';
+import { PoliceChaser } from '@player/PoliceChaser';
 import { TrackGenerator } from '@track/TrackGenerator';
 import { ObstacleManager } from '@obstacles/ObstacleManager';
 import { CoinManager } from '@collectibles/CoinManager';
@@ -42,6 +43,7 @@ export class GameManager {
   private camera!: CameraController;
 
   private player!: PlayerController;
+  private policeChaser!: PoliceChaser;
   private track!: TrackGenerator;
   private obstacles!: ObstacleManager;
   private coins!: CoinManager;
@@ -88,6 +90,7 @@ export class GameManager {
 
     this.input = new InputManager();
     this.player = new PlayerController();
+    this.policeChaser = new PoliceChaser();
     this.track = new TrackGenerator(this.ctx.scene);
     this.obstacles = new ObstacleManager(this.ctx.scene);
     this.coins = new CoinManager(this.ctx.scene);
@@ -131,6 +134,7 @@ export class GameManager {
     this.loadingScreen.setProgress(0.9);
 
     this.ctx.scene.add(this.player.model.group);
+    this.ctx.scene.add(this.policeChaser.group);
 
     this.gameLoop = new GameLoop(
       (dt) => this.update(dt),
@@ -188,6 +192,8 @@ export class GameManager {
     this.ui.hideAll();
     this.ui.show('screen-menu');
     this.input.disable();
+    this.audio.stopMusic();
+    this.audio.startMenuMusic();
     this.missions.ensureMissions();
     this.menuScreen.update({ coins: this.wallet.coins, keys: this.wallet.keys, highScore: this.score.highScore });
     this.resetGameplay();
@@ -206,7 +212,12 @@ export class GameManager {
     this.hud.updateCoins(0);
     this.hud.updateMultiplier(this.multiplier.level);
     this.hud.hidePowerUp();
-    this.doCountdown().then(() => { this.state.transition('playing'); this.input.enable(); });
+    this.doCountdown().then(() => {
+      this.state.transition('playing');
+      this.input.enable();
+      this.audio.startMusic();
+      this.policeChaser.startChase(this.player.z);
+    });
   }
 
   private async doCountdown(): Promise<void> {
@@ -242,10 +253,16 @@ export class GameManager {
     if (!this.state.transition('crash')) return;
     this.input.disable();
     this.input.flush();
-    setTimeout(() => {
-      if (this.reviveCount < ECONOMY.MAX_REVIVES_PER_RUN) this.showRevivePrompt();
-      else this.endRun();
-    }, 800);
+
+    // Police rushes to catch the runner — when caught, show revive or game over
+    this.policeChaser.onPlayerCrash(() => {
+      // Police has caught the runner!
+      if (this.reviveCount < ECONOMY.MAX_REVIVES_PER_RUN) {
+        this.showRevivePrompt();
+      } else {
+        this.endRun();
+      }
+    });
   }
 
   private showRevivePrompt(): void {
@@ -275,6 +292,7 @@ export class GameManager {
     this.reviveCount++;
     this.ui.hide('screen-revive');
     this.player.revive();
+    this.policeChaser.onPlayerRevive();
     this.state.transition('playing');
     this.input.enable();
   }
@@ -288,6 +306,7 @@ export class GameManager {
   private endRun(): void {
     this.state.transition('gameover');
     this.input.disable();
+    this.audio.stopMusic();
     this.score.finalizeRun();
     this.wallet.addCoins(this.score.coinsCollected);
 
@@ -343,6 +362,7 @@ export class GameManager {
   private resetGameplay(): void {
     this.player.reset(); this.track.reset(); this.obstacles.reset(); this.coins.reset();
     this.powerUps.reset(); this.vfx.reset(); this.score.reset();
+    this.policeChaser.reset(this.player.z);
     this.currentSpeed = GAME.BASE_SPEED; this.reviveCount = 0;
     this.runStats = { jumps: 0, slides: 0, powerUpsUsed: 0, obstaclesDodged: 0 };
     if (this.reviveInterval) { clearInterval(this.reviveInterval); this.reviveInterval = null; }
@@ -352,6 +372,10 @@ export class GameManager {
     if (this.state.is('playing')) this.updateGameplay(deltaTime);
     this.vfx.update(deltaTime);
     if (this.state.is('playing') || this.state.is('countdown')) this.camera.update(this.player.z, deltaTime);
+    // Always update police chaser during active gameplay states (so catch animation plays during crash)
+    if (this.state.is('crash') || this.state.is('revive')) {
+      this.policeChaser.update(deltaTime, this.player.x, this.player.y, this.player.z, 0);
+    }
   }
 
   private updateGameplay(deltaTime: number): void {
@@ -361,10 +385,18 @@ export class GameManager {
     this.currentSpeed = clamp(GAME.BASE_SPEED + this.score.distance * GAME.ACCELERATION_RATE, GAME.BASE_SPEED, GAME.MAX_SPEED);
 
     const isFlying = this.powerUps.jetpackActive;
+
+    // Apply jetpack flight to player
+    if (isFlying && !this.player.isFlying) {
+      this.player.setFlying(true, 4.5); // Fly above obstacles but stay visible
+    } else if (!isFlying && this.player.isFlying) {
+      this.player.setFlying(false, 0); // Land back down
+    }
+
     this.player.update(deltaTime, this.currentSpeed);
     this.track.update(this.player.z);
     this.obstacles.update(this.player.z, this.currentSpeed, this.score.distance, deltaTime);
-    this.coins.update(this.player.z, deltaTime);
+    this.coins.update(this.player.z, deltaTime, this.player.x, this.player.y);
     this.powerUps.update(this.player.z, this.score.distance, deltaTime);
 
     if (!this.player.isImmune && !isFlying) {
@@ -374,7 +406,6 @@ export class GameManager {
       const coinsCollected = this.coins.checkCollisions(playerAABB);
       for (let i = 0; i < coinsCollected; i++) {
         this.score.addCoinScore(this.multiplier.level);
-        this.vfx.spawnCoinCollect(this.player.x, this.player.y + 1, this.player.z);
       }
       this.powerUps.checkCollisions(playerAABB);
     }
@@ -385,7 +416,7 @@ export class GameManager {
     }
 
     if (isFlying) {
-      const collected = this.coins.collectAllInRange(this.player.z, 8);
+      const collected = this.coins.collectAllInRange(this.player.z, 10);
       for (let i = 0; i < collected; i++) this.score.addCoinScore(this.multiplier.level);
     }
 
@@ -394,6 +425,8 @@ export class GameManager {
 
     const activePU = this.powerUps.current;
     this.score.setActiveMultiplier(activePU?.active && activePU.id === 'multiplier' ? 2 : 1);
+
+    this.policeChaser.update(deltaTime, this.player.x, this.player.y, this.player.z, this.currentSpeed);
 
     this.hud.updateScore(this.score.current);
     this.hud.updateCoins(this.score.coinsCollected);

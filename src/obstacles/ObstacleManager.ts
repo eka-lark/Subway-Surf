@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GAME, DIFFICULTY } from '@core/Constants';
 import { lerp } from '@utils/MathUtils';
-import { randomInt, weightedRandom } from '@utils/RandomUtils';
+import { randomInt, weightedRandom, randomChoice } from '@utils/RandomUtils';
 import { OBSTACLE_CONFIGS, type ObstacleInstance } from './ObstacleTypes';
 import { createObstacleInstance, computeObstacleAABB } from './ObstacleFactory';
 import { aabbIntersect, type AABB } from '@player/PlayerCollision';
@@ -9,15 +9,17 @@ import { aabbIntersect, type AABB } from '@player/PlayerCollision';
 export class ObstacleManager {
   private scene: THREE.Scene;
   private obstacles: ObstacleInstance[] = [];
-  private lastSpawnZ = 0;
-  private nextSpawnDistance = 0;
+  private nextSpawnZ = 0;
 
   constructor(scene: THREE.Scene) { this.scene = scene; }
 
   update(playerZ: number, speed: number, distance: number, deltaTime: number): void {
-    if (playerZ + GAME.SEGMENT_LENGTH * GAME.SPAWN_AHEAD > this.lastSpawnZ + this.nextSpawnDistance) {
-      this.spawnObstacle(playerZ, distance);
+    // Spawn obstacles ahead of the player
+    while (this.nextSpawnZ < playerZ + GAME.SEGMENT_LENGTH * GAME.SPAWN_AHEAD) {
+      this.spawnObstacleGroup(distance);
     }
+
+    // Update dynamic obstacles (currently none, trains are static)
     for (const obs of this.obstacles) {
       if (!obs.active) continue;
       if (obs.config.type === 'dynamic_forward') {
@@ -28,9 +30,13 @@ export class ObstacleManager {
         obs.aabb = computeObstacleAABB(obs.config, x, obs.z);
       }
     }
+
+    // Despawn obstacles far behind the player
     this.obstacles = this.obstacles.filter(obs => {
       if (obs.z < playerZ - GAME.SEGMENT_LENGTH * 3) {
-        this.scene.remove(obs.mesh); obs.active = false; return false;
+        this.scene.remove(obs.mesh);
+        obs.active = false;
+        return false;
       }
       return true;
     });
@@ -44,46 +50,56 @@ export class ObstacleManager {
     return null;
   }
 
-  private spawnObstacle(playerZ: number, distance: number): void {
+  private spawnObstacleGroup(distance: number): void {
+    // Calculate spawn interval based on difficulty
     const t = Math.min(distance / DIFFICULTY.RAMP_DISTANCE, 1);
     const interval = lerp(DIFFICULTY.OBSTACLE_MAX_INTERVAL, DIFFICULTY.OBSTACLE_MIN_INTERVAL, t);
+    const gap = Math.max(20, interval * GAME.BASE_SPEED);
+
+    // Advance nextSpawnZ by the gap
+    this.nextSpawnZ += gap;
+
+    // Get eligible obstacle types for current distance
     const eligible = OBSTACLE_CONFIGS.filter(c => distance >= c.minDistance);
     if (eligible.length === 0) return;
 
+    // Pick a random obstacle type
     const weights: Record<string, number> = {};
     for (const c of eligible) weights[c.id] = c.weight;
     const selectedId = weightedRandom(weights);
     const config = eligible.find(c => c.id === selectedId)!;
 
-    const numLanes = randomInt(config.minLanes, config.maxLanes);
-    const lanes = this.pickLanes(numLanes);
-    const spawnZ = playerZ + GAME.SEGMENT_LENGTH * (GAME.SPAWN_AHEAD - 1);
+    // Pick which lane(s) to place it — ALWAYS leave at least 1 lane open
+    const lanes = this.pickLanesForObstacle(config);
 
     for (const lane of lanes) {
-      const obs = createObstacleInstance(config, lane, spawnZ);
+      const obs = createObstacleInstance(config, lane, this.nextSpawnZ);
       this.scene.add(obs.mesh);
       this.obstacles.push(obs);
     }
-    this.lastSpawnZ = spawnZ;
-    // Use a minimum gap based on jump travel distance to prevent landing on obstacles after jumping
-    const minGap = 15; // minimum meters between obstacles (covers a full jump arc at base speed)
-    this.nextSpawnDistance = Math.max(minGap, interval * GAME.BASE_SPEED);
   }
 
-  private pickLanes(count: number): number[] {
-    const allLanes = [-1, 0, 1];
-    const result: number[] = [];
-    const available = [...allLanes];
-    for (let i = 0; i < Math.min(count, 2); i++) {
-      const idx = randomInt(0, available.length - 1);
-      result.push(available[idx]);
-      available.splice(idx, 1);
+  private pickLanesForObstacle(config: typeof OBSTACLE_CONFIGS[number]): number[] {
+    // Single-lane obstacles: pick one random lane
+    if (config.maxLanes <= 1) {
+      return [randomChoice([-1, 0, 1])];
     }
-    return result;
+
+    // Multi-lane: pick 1-2 lanes, NEVER all 3
+    const numLanes = randomInt(1, Math.min(config.maxLanes, 2));
+    if (numLanes === 1) {
+      return [randomChoice([-1, 0, 1])];
+    }
+
+    // 2 lanes: pick 2 random lanes, leaving 1 open
+    const allLanes = [-1, 0, 1];
+    const skipIdx = randomInt(0, 2);
+    return allLanes.filter((_, i) => i !== skipIdx);
   }
 
   reset(): void {
     for (const obs of this.obstacles) this.scene.remove(obs.mesh);
-    this.obstacles = []; this.lastSpawnZ = 0; this.nextSpawnDistance = 0;
+    this.obstacles = [];
+    this.nextSpawnZ = 0;
   }
 }

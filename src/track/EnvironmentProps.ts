@@ -2,6 +2,15 @@ import * as THREE from 'three';
 import { GAME } from '@core/Constants';
 import { randomFloat, randomInt, randomChoice } from '@utils/RandomUtils';
 
+// Load user photo texture for building walls
+const textureLoader = new THREE.TextureLoader();
+let userPhotoTexture: THREE.Texture | null = null;
+textureLoader.load('/textures/akshay.jpg', (tex) => {
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  userPhotoTexture = tex;
+});
+
 const BUILDING_STYLES = [
   { color: 0x78909c, windowColor: 0xfff9c4 },
   { color: 0x8d6e63, windowColor: 0xffe0b2 },
@@ -462,13 +471,21 @@ function createBuilding(facingSide: number): THREE.Group {
     }
   }
 
-  // Billboard on the track-facing wall (50% chance, only on taller buildings)
-  if (height > 8 && Math.random() < 0.5) {
-    const bbDef = randomChoice(BILLBOARDS);
-    const texture = createBillboardTexture(bbDef);
+  // Wall art on the track-facing wall (60% chance, only on taller buildings)
+  if (height > 8 && Math.random() < 0.6) {
     const bbWidth = Math.min(width - 0.4, 4);
     const bbHeight = bbWidth * 0.75;
-    const bbMat = new THREE.MeshBasicMaterial({ map: texture });
+    let bbMat: THREE.Material;
+
+    // 30% chance to show user photo, 70% chance for procedural billboard
+    if (userPhotoTexture && Math.random() < 0.3) {
+      bbMat = new THREE.MeshBasicMaterial({ map: userPhotoTexture });
+    } else {
+      const bbDef = randomChoice(BILLBOARDS);
+      const texture = createBillboardTexture(bbDef);
+      bbMat = new THREE.MeshBasicMaterial({ map: texture });
+    }
+
     const bbGeo = new THREE.PlaneGeometry(bbWidth, bbHeight);
     const bb = new THREE.Mesh(bbGeo, bbMat);
     const bbY = randomFloat(3, Math.min(height - bbHeight, 8));
@@ -476,7 +493,7 @@ function createBuilding(facingSide: number): THREE.Group {
     if (facingSide > 0) bb.rotation.y = Math.PI;
     building.add(bb);
 
-    // Billboard border/frame
+    // Frame border around the image
     const frameMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
     const frameGeos = [
       { w: bbWidth + 0.1, h: 0.08, x: 0, y: bbY + bbHeight / 2 + 0.04 },

@@ -17,6 +17,8 @@ export class PlayerController {
   private slideTimer = 0;
   private immune = false;
   private immuneTimer = 0;
+  private _flying = false;
+  private _flightTargetY = 0;
 
   constructor() { this.model = new PlayerModel(); }
 
@@ -26,6 +28,7 @@ export class PlayerController {
   get z(): number { return this.positionZ; }
   get isImmune(): boolean { return this.immune; }
   get isDead(): boolean { return this.state === 'dead'; }
+  get isFlying(): boolean { return this._flying; }
   get currentState(): PlayerState { return this.state; }
 
   getAABB(): AABB {
@@ -71,13 +74,30 @@ export class PlayerController {
 
   setImmune(duration: number): void { this.immune = true; this.immuneTimer = duration; }
 
+  setFlying(flying: boolean, targetY: number): void {
+    this._flying = flying;
+    this._flightTargetY = targetY;
+    if (flying) {
+      this.state = 'jumping';
+      this.verticalVelocity = 0;
+      this.model.setAnimation('fly');
+    } else {
+      this.model.setAnimation('run');
+    }
+  }
+
   update(deltaTime: number, speed: number): void {
     if (this.state === 'dead') return;
     this.positionZ += speed * deltaTime;
     const targetX = this.targetLane * GAME.LANE_WIDTH;
     this.currentX = moveTowards(this.currentX, targetX, PHYSICS.LANE_SWITCH_SPEED * deltaTime);
 
-    if (this.state === 'jumping') {
+    if (this._flying) {
+      // Smoothly fly to target height
+      const flySpeed = 8;
+      this.positionY = moveTowards(this.positionY, this._flightTargetY, flySpeed * deltaTime);
+      this.verticalVelocity = 0;
+    } else if (this.state === 'jumping') {
       this.verticalVelocity += PHYSICS.GRAVITY * deltaTime;
       this.positionY += this.verticalVelocity * deltaTime;
       if (this.positionY <= PHYSICS.GROUND_Y) {
@@ -107,6 +127,7 @@ export class PlayerController {
     this.targetLane = 0; this.currentX = 0; this.positionY = PHYSICS.GROUND_Y; this.positionZ = 0;
     this.verticalVelocity = 0; this.state = 'grounded'; this.slideTimer = 0;
     this.immune = false; this.immuneTimer = 0;
+    this._flying = false; this._flightTargetY = 0;
     this.model.setAnimation('run');
     this.model.group.position.set(0, 0, 0);
     this.model.group.visible = true;

@@ -16,7 +16,7 @@ export function createObstacleMesh(config: ObstacleConfig): THREE.Group {
     case 'full_barrier':
       createFullBarrier(group, config);
       break;
-    case 'train_moving':
+    case 'train_parked':
       createTrain(group, config);
       break;
     default: {
