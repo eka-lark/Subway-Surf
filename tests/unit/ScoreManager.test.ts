@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ScoreManager } from '@scoring/ScoreManager';
+import { ScoreManager } from '../../src/scoring/ScoreManager';
 
 const mockStorage: Record<string, string> = {};
 vi.stubGlobal('localStorage', {

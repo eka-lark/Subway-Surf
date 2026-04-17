@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { WalletManager } from '@economy/WalletManager';
+import { WalletManager } from '../../src/economy/WalletManager';
 
 const mockStorage: Record<string, string> = {};
 vi.stubGlobal('localStorage', {

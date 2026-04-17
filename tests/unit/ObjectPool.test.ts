@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ObjectPool } from '@core/ObjectPool';
+import { ObjectPool } from '../../src/core/ObjectPool';
 
 describe('ObjectPool', () => {
   let pool: ObjectPool<{ id: number; active: boolean }>;
