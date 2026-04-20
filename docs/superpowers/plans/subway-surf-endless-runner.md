@@ -4390,6 +4390,7 @@ git commit -m "feat: add character system and shop with coin/key purchases"
 ### Task 20: Audio Manager
 
 **Files:**
+
 - Create: `src/audio/AudioManager.ts`
 
 - [ ] **Step 1: Create AudioManager.ts**
