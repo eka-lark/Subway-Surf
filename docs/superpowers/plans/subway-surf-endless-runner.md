@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 5.x, Three.js r160+, Vite 5.x, Howler.js 2.x, GSAP 3.x, Vitest 1.x
 
----
+----
 
 ## File Structure
 
