@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aabbIntersect, type AABB } from '@player/PlayerCollision';
+import { aabbIntersect, AABB } from '../../src/player/PlayerCollision';
 
 describe('PlayerCollision', () => {
   it('detects overlap', () => {

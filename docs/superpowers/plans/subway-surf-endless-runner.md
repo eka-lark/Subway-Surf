@@ -1,4 +1,4 @@
-# Subway Surf Endless Runner — Implementation Plan
+# Subway Surf Endless Runner Game — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 5.x, Three.js r160+, Vite 5.x, Howler.js 2.x, GSAP 3.x, Vitest 1.x
 
----
+----
 
 ## File Structure
 
@@ -117,6 +117,7 @@ subway-surf/
 ### Task 1: Project Initialization
 
 **Files:**
+
 - Create: `package.json`
 - Create: `tsconfig.json`
 - Create: `vite.config.ts`
@@ -809,6 +810,7 @@ git commit -m "feat: project scaffolding — Vite + TypeScript + Three.js setup"
 ### Task 2: Constants & Utility Modules
 
 **Files:**
+
 - Create: `src/core/Constants.ts`
 - Create: `src/utils/MathUtils.ts`
 - Create: `src/utils/RandomUtils.ts`
@@ -991,6 +993,7 @@ git commit -m "feat: add game constants and utility modules"
 ### Task 3: EventBus (with tests)
 
 **Files:**
+
 - Create: `src/core/EventBus.ts`
 - Create: `tests/unit/EventBus.test.ts`
 
@@ -1125,6 +1128,7 @@ git commit -m "feat: add typed EventBus with tests"
 ### Task 4: StateMachine (with tests)
 
 **Files:**
+
 - Create: `src/core/StateMachine.ts`
 - Create: `tests/unit/StateMachine.test.ts`
 
@@ -1287,6 +1291,7 @@ git commit -m "feat: add generic StateMachine with enter/exit callbacks and test
 ### Task 5: ObjectPool (with tests)
 
 **Files:**
+
 - Create: `src/core/ObjectPool.ts`
 - Create: `tests/unit/ObjectPool.test.ts`
 
@@ -1454,6 +1459,7 @@ git commit -m "feat: add generic ObjectPool with pre-warming and max cap, with t
 ### Task 6: SaveManager & Persistence (with tests)
 
 **Files:**
+
 - Create: `src/persistence/SaveData.ts`
 - Create: `src/persistence/SaveManager.ts`
 - Create: `tests/unit/SaveManager.test.ts`
@@ -1675,6 +1681,7 @@ git commit -m "feat: add SaveManager with localStorage persistence and tests"
 ### Task 7: GameLoop
 
 **Files:**
+
 - Create: `src/core/GameLoop.ts`
 
 - [ ] **Step 1: Implement GameLoop**
@@ -1741,6 +1748,7 @@ git commit -m "feat: add GameLoop with delta-time capping"
 ### Task 8: WalletManager (with tests)
 
 **Files:**
+
 - Create: `src/economy/WalletManager.ts`
 - Create: `tests/unit/WalletManager.test.ts`
 
@@ -1886,6 +1894,7 @@ git commit -m "feat: add WalletManager with coins/keys and persistence"
 ### Task 9: ScoreManager (with tests)
 
 **Files:**
+
 - Create: `src/scoring/ScoreManager.ts`
 - Create: `src/scoring/MultiplierTracker.ts`
 - Create: `tests/unit/ScoreManager.test.ts`
@@ -2081,6 +2090,7 @@ git commit -m "feat: add ScoreManager + MultiplierTracker with tests"
 ### Task 10: Input System
 
 **Files:**
+
 - Create: `src/input/KeyboardHandler.ts`
 - Create: `src/input/SwipeHandler.ts`
 - Create: `src/input/InputManager.ts`
@@ -2279,6 +2289,7 @@ git commit -m "feat: add input system — keyboard, swipe, input buffer"
 ### Task 11: Scene Setup & Camera
 
 **Files:**
+
 - Create: `src/rendering/SceneSetup.ts`
 - Create: `src/rendering/CameraController.ts`
 
@@ -2406,6 +2417,7 @@ git commit -m "feat: add Three.js scene setup and smooth-follow camera"
 ### Task 12: Player Controller & Model
 
 **Files:**
+
 - Create: `src/player/PlayerController.ts`
 - Create: `src/player/PlayerModel.ts`
 - Create: `src/player/PlayerCollision.ts`
@@ -2789,6 +2801,7 @@ git commit -m "feat: add player controller, model, collision — 3-lane movement
 ### Task 13: Track Generation
 
 **Files:**
+
 - Create: `src/track/TrackSegment.ts`
 - Create: `src/track/TrackGenerator.ts`
 - Create: `src/track/EnvironmentProps.ts`
@@ -3011,6 +3024,7 @@ git commit -m "feat: add procedural track generation with object pooling and env
 ### Task 14: Obstacle System
 
 **Files:**
+
 - Create: `src/obstacles/ObstacleTypes.ts`
 - Create: `src/obstacles/ObstacleFactory.ts`
 - Create: `src/obstacles/ObstacleManager.ts`
@@ -3295,6 +3309,7 @@ git commit -m "feat: add obstacle system — factory, types, spawning with diffi
 ### Task 15: Coin System
 
 **Files:**
+
 - Create: `src/collectibles/Coin.ts`
 - Create: `src/collectibles/CoinPatterns.ts`
 - Create: `src/collectibles/CoinManager.ts`
@@ -3534,6 +3549,7 @@ git commit -m "feat: add coin system — patterns, spawning, collection with gen
 ### Task 16: Power-Up System
 
 **Files:**
+
 - Create: `src/powerups/PowerUpBase.ts`
 - Create: `src/powerups/Jetpack.ts`
 - Create: `src/powerups/Magnet.ts`
@@ -3805,6 +3821,7 @@ git commit -m "feat: add power-up system — Jetpack and Magnet with level scali
 ### Task 17: VFX Manager
 
 **Files:**
+
 - Create: `src/rendering/VFXManager.ts`
 
 - [ ] **Step 1: Create VFXManager.ts**
@@ -3920,6 +3937,7 @@ git commit -m "feat: add VFX manager — coin collect and crash particle effects
 ### Task 18: Mission System (with tests)
 
 **Files:**
+
 - Create: `src/missions/MissionData.ts`
 - Create: `src/missions/MissionManager.ts`
 - Create: `src/missions/AchievementTracker.ts`
@@ -4212,6 +4230,7 @@ git commit -m "feat: add mission system and achievement tracker with tests"
 ### Task 19: Character Data & Shop Manager
 
 **Files:**
+
 - Create: `src/characters/CharacterData.ts`
 - Create: `src/characters/CharacterManager.ts`
 - Create: `src/economy/ShopManager.ts`
@@ -4390,6 +4409,7 @@ git commit -m "feat: add character system and shop with coin/key purchases"
 ### Task 20: Audio Manager
 
 **Files:**
+
 - Create: `src/audio/AudioManager.ts`
 
 - [ ] **Step 1: Create AudioManager.ts**
@@ -4568,6 +4588,7 @@ git commit -m "feat: add AudioManager with synthesized SFX for MVP"
 ### Task 21: UI Manager & All Screens
 
 **Files:**
+
 - Create: `src/ui/UIManager.ts`
 - Create: `src/ui/screens/LoadingScreen.ts`
 - Create: `src/ui/screens/MainMenuScreen.ts`
@@ -4958,6 +4979,7 @@ git commit -m "feat: add UI system — all screens, HUD, shop, missions with GSA
 ### Task 22: GameManager
 
 **Files:**
+
 - Create: `src/core/GameManager.ts`
 - Modify: `src/main.ts`
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MissionManager } from '@missions/MissionManager';
+import { MissionManager } from '../../src/missions/MissionManager';
 
 const mockStorage: Record<string, string> = {};
 vi.stubGlobal('localStorage', {

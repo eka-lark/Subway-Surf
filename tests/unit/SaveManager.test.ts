@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SaveManager } from '@persistence/SaveManager';
+import { SaveManager } from '../../src/persistence/SaveManager';
 
 const mockStorage: Record<string, string> = {};
 vi.stubGlobal('localStorage', {
